@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mein Training</title>
+  <meta name="theme-color" content="#0e0e10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,6 +18,11 @@
     <!-- Startseite -->
     <section id="start" class="seite">
       <h1>Mein Training</h1>
+      <div class="hero">
+        <span class="hero-label">Heute</span>
+        <div id="hero-heute" class="hero-titel"></div>
+        <div id="hero-letztes" class="klein"></div>
+      </div>
       <button class="kachel gross" data-ziel="starten">▶️ Training starten</button>
       <div class="raster">
         <button class="kachel" data-ziel="neu">➕ Neues Training</button>
@@ -94,7 +105,7 @@
       </div>
 
       <div id="start-laeuft" style="display:none">
-        <p class="klein" id="start-info"></p>
+        <div class="timer-box"><span class="klein" id="start-info"></span><span id="start-timer" class="timer">00:00</span></div>
         <div id="start-uebungen"></div>
         <button type="button" id="start-beenden" class="haupt">Training beenden &amp; speichern</button>
         <button type="button" id="start-abbrechen" class="zweitrangig breit">Abbrechen</button>

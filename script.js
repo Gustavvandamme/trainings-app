@@ -2,6 +2,7 @@
 function zeigeSeite(id) {
   document.querySelectorAll(".seite").forEach((s) => s.classList.remove("aktiv"));
   document.getElementById(id).classList.add("aktiv");
+  if (id === "start") zeigeHero();
   if (id === "anpassen") fuelleAnpAuswahl();
   if (id === "planen") zeigePlanen();
   if (id === "fortschritt") zeigeFortschritt();
@@ -436,6 +437,7 @@ function geplantesTrainingHeute() {
 }
 
 function zeigeStartAuswahl() {
+  stoppeTimer();
   document.getElementById("start-auswahl").style.display = "block";
   document.getElementById("start-laeuft").style.display = "none";
   laufendesTraining = null;
@@ -471,6 +473,7 @@ function starteTraining(training, planEintrag) {
   document.getElementById("start-info").textContent =
     training.name + " · gestartet um " + new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " Uhr";
   zeigeLaufendeUebungen();
+  starteTimer();
 }
 
 function uebernehmeStartEingaben() {
@@ -584,6 +587,7 @@ document.getElementById("start-beenden").addEventListener("click", () => {
   }
 
   laufendesTraining = null;
+  stoppeTimer();
   alert("Stark! Training gespeichert.");
   zeigeSeite("start");
 });
@@ -630,14 +634,14 @@ function zeichneDiagramm(ziel, punkte, einheit) {
   let svg = '<svg class="diagramm" viewBox="0 0 ' + B + " " + H + '">';
   for (let k = 0; k <= 3; k++) {
     const w = min + ((max - min) * k) / 3;
-    svg += '<line x1="' + L + '" x2="' + (B - R) + '" y1="' + y(w) + '" y2="' + y(w) + '" stroke="#eee"/>';
+    svg += '<line x1="' + L + '" x2="' + (B - R) + '" y1="' + y(w) + '" y2="' + y(w) + '" stroke="#2a2a2e"/>';
     svg += '<text x="' + (L - 4) + '" y="' + (y(w) + 3) + '" text-anchor="end">' + zahl(w) + "</text>";
   }
-  svg += '<polyline fill="none" stroke="#2a7ae2" stroke-width="2.5" points="' +
+  svg += '<polyline fill="none" stroke="#ff7a1a" stroke-width="2.5" points="' +
     punkte.map((p, i) => x(i) + "," + y(p.wert)).join(" ") + '"/>';
   const schritt = Math.ceil(punkte.length / 6);
   punkte.forEach((p, i) => {
-    svg += '<circle cx="' + x(i) + '" cy="' + y(p.wert) + '" r="3.5" fill="#2a7ae2"><title>' +
+    svg += '<circle cx="' + x(i) + '" cy="' + y(p.wert) + '" r="3.5" fill="#ff7a1a"><title>' +
       formatDatum(p.datum) + ": " + zahl(p.wert) + " " + einheit + "</title></circle>";
     if (i % schritt === 0 || i === punkte.length - 1) {
       svg += '<text x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + formatDatum(p.datum) + "</text>";
@@ -746,6 +750,7 @@ function trainingsKarte(training, verlauf) {
       const b = Math.max(...punkte.map((p) => p.wert));
       const l = punkte[punkte.length - 1].wert;
       const rekord = punkte.length > 1 && l >= b ? " 🏆 Neuer Bestwert!" : "";
+      kraftInfo.classList.toggle("rekord", rekord !== "");
       kraftInfo.textContent = "Zuletzt: ca. " + zahl(l) + " kg · Bestwert: ca. " + zahl(b) + " kg" + veraenderung(punkte) + rekord;
     };
     auswahl.addEventListener("change", zeigeKraft);
@@ -969,6 +974,38 @@ function ladeIcs(eintraege) {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+// ---------- Startseite: Heute-Bereich ----------
+function zeigeHero() {
+  const geplant = geplantesTrainingHeute();
+  document.getElementById("hero-heute").textContent = geplant
+    ? geplant.training.name + (geplant.eintrag.uhrzeit ? " · " + geplant.eintrag.uhrzeit + " Uhr" : "")
+    : "Kein Training geplant";
+  const verlauf = ladeVerlauf().sort((a, b) => a.datum.localeCompare(b.datum) || a.id - b.id);
+  const letztes = verlauf[verlauf.length - 1];
+  document.getElementById("hero-letztes").textContent = letztes
+    ? "Letztes Training: " + letztes.name + " am " + formatDatum(letztes.datum) + " · " + zahl(volumen(letztes)) + " kg bewegt"
+    : "Noch kein Training absolviert – leg los!";
+}
+
+// ---------- Trainings-Timer ----------
+let timerIntervall = null;
+function starteTimer() {
+  stoppeTimer();
+  const el = document.getElementById("start-timer");
+  const tick = () => {
+    if (!laufendesTraining) return;
+    const sek = Math.floor((Date.now() - new Date(laufendesTraining.beginn)) / 1000);
+    const h = Math.floor(sek / 3600), m = Math.floor((sek % 3600) / 60), x = sek % 60;
+    el.textContent = (h ? h + ":" : "") + String(m).padStart(2, "0") + ":" + String(x).padStart(2, "0");
+  };
+  tick();
+  timerIntervall = setInterval(tick, 1000);
+}
+function stoppeTimer() {
+  if (timerIntervall) clearInterval(timerIntervall);
+  timerIntervall = null;
 }
 
 // ---------- Start ----------
