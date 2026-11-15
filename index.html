@@ -8,18 +8,165 @@
 </head>
 <body>
   <main>
-    <h1>Mein Training</h1>
-    <form id="eintrag-formular">
-      <label for="uebung">Übung</label>
-      <input id="uebung" type="text" required placeholder="z. B. Kniebeugen">
-      <label for="gewicht">Gewicht (kg)</label>
-      <input id="gewicht" type="number" step="0.5" min="0" required placeholder="z. B. 60">
-      <label for="datum">Datum</label>
-      <input id="datum" type="date" required>
-      <button type="submit">Speichern</button>
-    </form>
-    <h2>Meine Einträge</h2>
-    <ul id="liste"></ul>
+
+    <!-- Startseite -->
+    <section id="start" class="seite">
+      <h1>Mein Training</h1>
+      <button class="kachel gross" data-ziel="starten">▶️ Training starten</button>
+      <div class="raster">
+        <button class="kachel" data-ziel="neu">➕ Neues Training</button>
+        <button class="kachel" data-ziel="anpassen">✏️ Training anpassen</button>
+        <button class="kachel" data-ziel="planen">📅 Training planen</button>
+        <button class="kachel" data-ziel="fortschritt">📈 Fortschritt</button>
+        <button class="kachel" data-ziel="profil">👤 Profil</button>
+      </div>
+    </section>
+
+    <!-- Profil -->
+    <section id="profil" class="seite">
+      <button class="zurueck">← Zurück</button>
+      <h1>Profil</h1>
+      <form id="profil-formular">
+        <label for="alter">Alter (Jahre)</label>
+        <input id="alter" type="number" min="1" max="120">
+
+        <label for="koerpergewicht">Gewicht (kg)</label>
+        <input id="koerpergewicht" type="number" step="0.1" min="1">
+
+        <label for="groesse">Größe (cm)</label>
+        <input id="groesse" type="number" min="50" max="250">
+
+        <button type="submit">Speichern</button>
+      </form>
+      <p id="profil-info"></p>
+    </section>
+
+    <!-- Neues Training -->
+    <section id="neu" class="seite">
+      <button class="zurueck">← Zurück</button>
+      <h1>Neues Training</h1>
+
+      <div class="karte">
+        <label for="training-name">Name des Trainings</label>
+        <input id="training-name" type="text" placeholder="z. B. Brust / Bizeps">
+
+        <label for="training-dauer">Durchschnittliche Dauer (Minuten)</label>
+        <input id="training-dauer" type="number" min="1" placeholder="z. B. 60">
+      </div>
+
+      <div class="karte">
+        <h2>Übung hinzufügen</h2>
+        <label for="region">Körperregion</label>
+        <select id="region"></select>
+
+        <label for="uebung-auswahl">Übung</label>
+        <select id="uebung-auswahl"></select>
+
+        <div id="saetze"></div>
+        <button type="button" id="satz-plus" class="zweitrangig">+ Satz</button>
+        <button type="button" id="uebung-hinzufuegen">Übung übernehmen</button>
+      </div>
+
+      <h2>Übungen in diesem Training</h2>
+      <ul id="uebungen-liste" class="liste"></ul>
+
+      <button type="button" id="training-speichern" class="haupt">Training speichern</button>
+
+      <h2>Gespeicherte Trainings</h2>
+      <ul id="trainings-liste" class="liste"></ul>
+    </section>
+
+    <!-- Platzhalter für spätere Bereiche -->
+    <section id="starten" class="seite">
+      <button class="zurueck">← Zurück</button>
+      <h1>Training starten</h1>
+
+      <div id="start-auswahl">
+        <div class="karte" id="start-geplant-box" style="display:none">
+          <p id="start-geplant-text"></p>
+          <button type="button" id="start-geplant" class="haupt">Geplantes Training starten</button>
+        </div>
+        <div class="karte">
+          <label for="start-training">Anderes Training wählen</label>
+          <select id="start-training"></select>
+          <button type="button" id="start-anderes" class="zweitrangig">Dieses Training starten</button>
+        </div>
+      </div>
+
+      <div id="start-laeuft" style="display:none">
+        <p class="klein" id="start-info"></p>
+        <div id="start-uebungen"></div>
+        <button type="button" id="start-beenden" class="haupt">Training beenden &amp; speichern</button>
+        <button type="button" id="start-abbrechen" class="zweitrangig breit">Abbrechen</button>
+      </div>
+    </section>
+    <section id="anpassen" class="seite">
+      <button class="zurueck">← Zurück</button>
+      <h1>Training anpassen</h1>
+
+      <div class="karte">
+        <label for="anpassen-auswahl">Training auswählen</label>
+        <select id="anpassen-auswahl"></select>
+      </div>
+
+      <div id="anpassen-bereich" style="display:none">
+        <div class="karte">
+          <label for="anpassen-name">Name des Trainings</label>
+          <input id="anpassen-name" type="text">
+          <label for="anpassen-dauer">Durchschnittliche Dauer (Minuten)</label>
+          <input id="anpassen-dauer" type="number" min="1">
+        </div>
+
+        <h2>Übungen</h2>
+        <div id="anpassen-uebungen"></div>
+
+        <div class="karte">
+          <h2>Übung hinzufügen</h2>
+          <label for="anpassen-region">Körperregion</label>
+          <select id="anpassen-region"></select>
+          <label for="anpassen-uebung">Übung</label>
+          <select id="anpassen-uebung"></select>
+          <button type="button" id="anpassen-hinzufuegen" class="zweitrangig">+ Übung hinzufügen</button>
+        </div>
+
+        <button type="button" id="anpassen-speichern" class="haupt">Änderungen speichern</button>
+      </div>
+    </section>
+    <section id="planen" class="seite">
+      <button class="zurueck">← Zurück</button>
+      <h1>Training planen</h1>
+
+      <div class="karte">
+        <label for="plan-training">Training</label>
+        <select id="plan-training"></select>
+
+        <label for="plan-datum">Datum</label>
+        <input id="plan-datum" type="date">
+
+        <label for="plan-uhrzeit">Uhrzeit</label>
+        <input id="plan-uhrzeit" type="time" value="18:00">
+
+        <p id="plan-ende" class="klein"></p>
+        <button type="button" id="plan-hinzufuegen" class="haupt">Einplanen</button>
+      </div>
+
+      <div id="plan-verpasst-box" style="display:none">
+        <h2>Verpasst</h2>
+        <ul id="plan-verpasst" class="liste"></ul>
+      </div>
+
+      <h2>Geplant</h2>
+      <ul id="plan-liste" class="liste"></ul>
+      <button type="button" id="plan-alle-ics" class="zweitrangig breit">Alle kommenden Termine in Kalender übernehmen</button>
+    </section>
+    <section id="fortschritt" class="seite">
+      <button class="zurueck">← Zurück</button>
+      <h1>Fortschritt</h1>
+      <p class="klein">Volumen = Summe aus Wiederholungen × Gewicht aller Sätze. Maximalkraft = bester Satz des Tages nach Epley: Gewicht × (1 + Wdh. / 30).</p>
+      <div id="fs-karten"></div>
+      <p id="fs-leer" class="klein"></p>
+    </section>
+
   </main>
   <script src="script.js"></script>
 </body>
