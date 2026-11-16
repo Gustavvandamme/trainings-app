@@ -52,7 +52,45 @@
 
         <button type="submit">Speichern</button>
       </form>
-      <p id="profil-info"></p>
+      <p id="profil-info" class="klein"></p>
+
+      <div class="karte" id="bmi-karte" style="display:none">
+        <h2>BMI</h2>
+        <div class="bmi-kopf">
+          <strong id="bmi-wert"></strong>
+          <span id="bmi-kategorie" class="bmi-kat"></span>
+        </div>
+        <div class="bmi-skala-wrap">
+          <div class="bmi-skala" aria-hidden="true">
+            <span class="bmi-seg untergewicht"></span>
+            <span class="bmi-seg normalgewicht"></span>
+            <span class="bmi-seg uebergewicht"></span>
+            <span class="bmi-seg adipositas"></span>
+          </div>
+          <div class="bmi-marker" id="bmi-marker">
+            <span class="bmi-marker-label" id="bmi-marker-label"></span>
+          </div>
+        </div>
+        <div class="bmi-ticks">
+          <span style="left:0%">15</span>
+          <span style="left:14%">18,5</span>
+          <span style="left:40%">25</span>
+          <span style="left:60%">30</span>
+          <span style="left:100%">40</span>
+        </div>
+        <div class="bmi-legende">
+          <span><i class="bmi-seg untergewicht"></i> Untergewicht</span>
+          <span><i class="bmi-seg normalgewicht"></i> Normalgewicht</span>
+          <span><i class="bmi-seg uebergewicht"></i> Übergewicht</span>
+          <span><i class="bmi-seg adipositas"></i> Adipositas</span>
+        </div>
+      </div>
+
+      <div class="karte" id="gewicht-verlauf-karte">
+        <h2>Gewichtsverlauf</h2>
+        <div id="profil-gewicht-diagramm"></div>
+        <p class="klein" id="profil-gewicht-info"></p>
+      </div>
     </section>
 
     <!-- Neues Training -->
@@ -94,6 +132,16 @@
     <section id="starten" class="seite">
       <button class="zurueck">← Zurück</button>
       <h1>Training starten</h1>
+
+      <div class="karte gewicht-karte" id="start-gewicht-karte">
+        <span class="hero-label">Körpergewicht heute</span>
+        <div class="gewicht-zeile">
+          <button type="button" id="gewicht-minus" class="zweitrangig gewicht-step" aria-label="Gewicht verringern">−</button>
+          <div class="gewicht-anzeige"><span id="gewicht-wert">—</span><span class="gewicht-einheit">kg</span></div>
+          <button type="button" id="gewicht-plus" class="zweitrangig gewicht-step" aria-label="Gewicht erhöhen">+</button>
+        </div>
+        <button type="button" id="gewicht-uebernehmen" class="zweitrangig breit">Übernehmen</button>
+      </div>
 
       <div id="start-auswahl">
         <div class="karte" id="start-geplant-box" style="display:none">

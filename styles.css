@@ -245,3 +245,138 @@ body::before {
   pointer-events: none;
 }
 .kachel:not(.gross), .karte, .hero { background-color: rgba(26, 26, 29, 0.72) !important; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+
+/* ===== Alternativen-Chips ===== */
+.alternativen-box { margin-top: 8px; }
+.alternativen-box > .klein { display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--orange);
+  color: var(--orange);
+  border-radius: 999px;
+  padding: 4px 8px 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 122, 26, 0.08);
+}
+.chip button {
+  background: none;
+  border: none;
+  color: var(--orange);
+  padding: 0 2px;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 50%;
+}
+.alt-zeile {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+.alt-zeile select { padding: 8px; font-size: 14px; }
+.alt-zeile button { padding: 8px 12px; min-width: 44px; }
+
+.liste li.mit-alternativen {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* ===== Swipe im laufenden Training ===== */
+.swipe-wrap { overflow: hidden; margin-bottom: 12px; }
+.swipe-wrap > .karte { margin-bottom: 0; touch-action: pan-y; }
+.alt-hinweis {
+  color: var(--orange);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 2px 0 8px;
+}
+.punkte { display: flex; gap: 6px; justify-content: center; margin: 0 0 8px; }
+.punkt {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--linie);
+}
+.punkt.aktiv { background: var(--orange); }
+.swipe-btn { padding: 4px 10px; font-size: 16px; line-height: 1; min-width: 40px; }
+
+/* ===== Körpergewicht-Karte ===== */
+.gewicht-karte { text-align: center; }
+.gewicht-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+.gewicht-anzeige {
+  min-width: 110px;
+  text-align: center;
+}
+#gewicht-wert {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 36px;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+.gewicht-einheit { color: var(--grau); font-size: 14px; margin-left: 4px; font-weight: 600; }
+.gewicht-step {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+
+/* ===== BMI-Skala ===== */
+.bmi-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+#bmi-wert { font-family: "Bebas Neue", sans-serif; font-size: 32px; letter-spacing: 1px; font-weight: 400; }
+.bmi-kat { font-size: 14px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; }
+.bmi-kat.untergewicht { color: #4da3ff; }
+.bmi-kat.normalgewicht { color: var(--gruen); }
+.bmi-kat.uebergewicht { color: #f5c542; }
+.bmi-kat.adipositas { color: var(--rot); }
+.bmi-skala-wrap { position: relative; margin: 28px 0 6px; }
+.bmi-skala { display: flex; height: 14px; border-radius: 999px; overflow: hidden; }
+.bmi-seg.untergewicht { background: #4da3ff; flex: 3.5; }
+.bmi-seg.normalgewicht { background: var(--gruen); flex: 6.5; }
+.bmi-seg.uebergewicht { background: #f5c542; flex: 5; }
+.bmi-seg.adipositas { background: var(--rot); flex: 10; }
+.bmi-marker {
+  position: absolute;
+  top: -6px;
+  left: 0;
+  width: 4px;
+  height: 26px;
+  background: #fff;
+  border-radius: 2px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 2px #0e0e10;
+  transition: left 0.25s ease;
+  pointer-events: none;
+}
+.bmi-marker-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--text);
+}
+.bmi-ticks { position: relative; height: 18px; margin-bottom: 8px; color: var(--grau); font-size: 11px; }
+.bmi-ticks span { position: absolute; transform: translateX(-50%); }
+.bmi-ticks span:first-child { transform: none; }
+.bmi-ticks span:last-child { transform: translateX(-100%); }
+.bmi-legende { display: flex; flex-wrap: wrap; gap: 8px 12px; color: var(--grau); font-size: 12px; }
+.bmi-legende i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; flex: none; }

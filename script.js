@@ -6,7 +6,11 @@ function zeigeSeite(id) {
   if (id === "anpassen") fuelleAnpAuswahl();
   if (id === "planen") zeigePlanen();
   if (id === "fortschritt") zeigeFortschritt();
-  if (id === "starten" && !laufendesTraining) zeigeStartAuswahl();
+  if (id === "starten") {
+    zeigeGewichtKarte();
+    if (!laufendesTraining) zeigeStartAuswahl();
+  }
+  if (id === "profil") zeigeProfil();
   if (id === "neu") fuelleUebungen();
   window.scrollTo(0, 0);
 }
@@ -26,31 +30,111 @@ function ladeProfil() {
   return JSON.parse(localStorage.getItem(PROFIL_NAME)) || {};
 }
 
+function berechneBmi(gewicht, groesse) {
+  const kg = Number(gewicht), cm = Number(groesse);
+  if (!(kg > 0) || !(cm > 0)) return null;
+  return kg / ((cm / 100) * (cm / 100));
+}
+
+function bmiKategorie(bmi) {
+  if (bmi < 18.5) return { id: "untergewicht", name: "Untergewicht" };
+  if (bmi < 25) return { id: "normalgewicht", name: "Normalgewicht" };
+  if (bmi < 30) return { id: "uebergewicht", name: "Übergewicht" };
+  return { id: "adipositas", name: "Adipositas" };
+}
+
+function formatKg(n) {
+  return rundeKg(n).toFixed(1).replace(".", ",");
+}
+
+function formatDatumLang(iso) {
+  const [j, m, t] = iso.split("-");
+  return t + "." + m + "." + j;
+}
+
+function keimeGewichtVerlauf() {
+  if (ladeGewichtVerlauf().length) return;
+  const p = ladeProfil();
+  if (!(Number(p.gewicht) > 0)) return;
+  localStorage.setItem(GEWICHT_VERLAUF, JSON.stringify([{ datum: heute(), gewicht: rundeKg(p.gewicht) }]));
+}
+
+function zeigeBmiSkala(bmi) {
+  const karte = document.getElementById("bmi-karte");
+  const info = document.getElementById("profil-info");
+  if (bmi == null) {
+    karte.style.display = "none";
+    info.textContent = "Für den BMI bitte Gewicht und Größe eintragen.";
+    return;
+  }
+  info.textContent = "";
+  karte.style.display = "flex";
+  const kat = bmiKategorie(bmi);
+  const text = bmi.toFixed(1).replace(".", ",");
+  document.getElementById("bmi-wert").textContent = "BMI " + text;
+  const label = document.getElementById("bmi-kategorie");
+  label.textContent = kat.name;
+  label.className = "bmi-kat " + kat.id;
+  const min = 15, max = 40;
+  const pct = Math.min(100, Math.max(0, ((bmi - min) / (max - min)) * 100));
+  const marker = document.getElementById("bmi-marker");
+  marker.style.left = pct + "%";
+  marker.setAttribute("data-bmi", String(bmi));
+  marker.setAttribute("data-kategorie", kat.id);
+  document.getElementById("bmi-marker-label").textContent = text;
+}
+
+function zeigeGewichtsverlauf() {
+  keimeGewichtVerlauf();
+  const punkte = ladeGewichtVerlauf()
+    .slice()
+    .sort((a, b) => a.datum.localeCompare(b.datum))
+    .filter((e) => Number(e.gewicht) > 0)
+    .map((e) => ({ datum: e.datum, wert: rundeKg(e.gewicht) }));
+  const info = document.getElementById("profil-gewicht-info");
+  if (punkte.length === 0) {
+    zeichneDiagramm("profil-gewicht-diagramm", [], "kg", 1);
+    info.textContent = "Noch keine Gewichtsdaten. Speichere dein Gewicht, dann erscheint hier der Verlauf.";
+    return;
+  }
+  zeichneDiagramm("profil-gewicht-diagramm", punkte, "kg", 1);
+  if (punkte.length === 1) {
+    info.textContent = "1 Eintrag · " + formatKg(punkte[0].wert) + " kg am " + formatDatumLang(punkte[0].datum);
+  } else {
+    const delta = rundeKg(punkte[punkte.length - 1].wert - punkte[0].wert);
+    const vorzeichen = delta > 0 ? "+" : (delta < 0 ? "−" : "");
+    info.textContent = vorzeichen + Math.abs(delta).toFixed(1).replace(".", ",") + " kg seit " + formatDatumLang(punkte[0].datum);
+  }
+}
+
 function zeigeProfil() {
   const profil = ladeProfil();
   document.getElementById("alter").value = profil.alter || "";
   document.getElementById("koerpergewicht").value = profil.gewicht || "";
   document.getElementById("groesse").value = profil.groesse || "";
-
-  const info = document.getElementById("profil-info");
-  if (profil.gewicht && profil.groesse) {
-    const meter = profil.groesse / 100;
-    const bmi = (profil.gewicht / (meter * meter)).toFixed(1);
-    info.textContent = "Dein BMI: " + bmi;
-  } else {
-    info.textContent = "";
-  }
+  zeigeBmiSkala(berechneBmi(profil.gewicht, profil.groesse));
+  zeigeGewichtsverlauf();
 }
 
 document.getElementById("profil-formular").addEventListener("submit", (ereignis) => {
   ereignis.preventDefault();
+  const bisher = ladeProfil();
+  const gewichtRoh = document.getElementById("koerpergewicht").value;
+  const gewicht = Number(gewichtRoh) > 0 ? rundeKg(gewichtRoh) : "";
   const profil = {
     alter: document.getElementById("alter").value,
-    gewicht: document.getElementById("koerpergewicht").value,
+    gewicht: gewicht === "" ? (bisher.gewicht || "") : gewicht,
     groesse: document.getElementById("groesse").value
   };
   localStorage.setItem(PROFIL_NAME, JSON.stringify(profil));
-  zeigeProfil();
+  const altGewicht = Number(bisher.gewicht) > 0 ? rundeKg(bisher.gewicht) : null;
+  if (gewicht !== "" && (altGewicht !== gewicht || ladeGewichtVerlauf().length === 0)) {
+    speichereKoerpergewicht(gewicht);
+  } else if (ladeGewichtVerlauf().length === 0 && Number(profil.gewicht) > 0) {
+    speichereKoerpergewicht(profil.gewicht);
+  } else {
+    zeigeProfil();
+  }
   alert("Profil gespeichert");
 });
 
@@ -170,7 +254,7 @@ document.getElementById("uebung-hinzufuegen").addEventListener("click", () => {
     alert("Bitte zuerst eine Übung auswählen.");
     return;
   }
-  aktuelleUebungen.push({ region: regionAuswahl.value, name: uebungAuswahl.value, saetze: saetze });
+  aktuelleUebungen.push({ region: regionAuswahl.value, name: uebungAuswahl.value, saetze: saetze, alternativen: [] });
   setzeSaetzeZurueck();
   zeigeAktuelleUebungen();
 });
@@ -183,8 +267,12 @@ function zeigeAktuelleUebungen() {
   const liste = document.getElementById("uebungen-liste");
   liste.innerHTML = "";
   aktuelleUebungen.forEach((u, index) => {
+    if (!Array.isArray(u.alternativen)) u.alternativen = [];
     const li = document.createElement("li");
-    li.innerHTML = "<div><strong>" + u.name + "</strong><br><span class='klein'>" + satzText(u.saetze) + "</span></div>";
+    li.className = "mit-alternativen";
+    const kopf = document.createElement("div");
+    kopf.className = "uebung-kopf";
+    kopf.innerHTML = "<div><strong>" + u.name + "</strong><br><span class='klein'>" + satzText(u.saetze) + "</span></div>";
     const knopf = document.createElement("button");
     knopf.className = "loeschen";
     knopf.textContent = "×";
@@ -192,9 +280,131 @@ function zeigeAktuelleUebungen() {
       aktuelleUebungen.splice(index, 1);
       zeigeAktuelleUebungen();
     });
-    li.appendChild(knopf);
+    kopf.appendChild(knopf);
+    li.appendChild(kopf);
+    li.appendChild(baueAlternativenBereich(u, () => zeigeAktuelleUebungen()));
     liste.appendChild(li);
   });
+}
+
+function normalisiereAlternativen(liste, hauptname) {
+  return (liste || [])
+    .map((a) => (typeof a === "string" ? a : (a && a.name) || ""))
+    .map((n) => n.trim())
+    .filter((n, i, arr) => n && n !== hauptname && arr.indexOf(n) === i);
+}
+
+function findeRegionFuerUebung(name) {
+  const eigene = ladeEigeneUebungen();
+  for (const region of Object.keys(UEBUNGEN)) {
+    if (UEBUNGEN[region].includes(name) || (eigene[region] || []).includes(name)) return region;
+  }
+  return "";
+}
+
+function merkeEigeneUebung(region, name) {
+  if (!region || !name) return;
+  const alle = ladeEigeneUebungen();
+  const liste = alle[region] || [];
+  if (!(UEBUNGEN[region] || []).includes(name) && !liste.includes(name)) {
+    liste.push(name);
+    alle[region] = liste;
+    localStorage.setItem(EIGENE_NAME, JSON.stringify(alle));
+  }
+}
+
+function baueAlternativenBereich(uebung, onChange) {
+  if (!Array.isArray(uebung.alternativen)) uebung.alternativen = [];
+  const box = document.createElement("div");
+  box.className = "alternativen-box";
+  const label = document.createElement("span");
+  label.className = "klein";
+  label.textContent = "Alternativen";
+  box.appendChild(label);
+
+  const chips = document.createElement("div");
+  chips.className = "chips";
+  uebung.alternativen.forEach((name, i) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.appendChild(document.createTextNode(name));
+    const x = document.createElement("button");
+    x.type = "button";
+    x.setAttribute("aria-label", "Alternative entfernen");
+    x.textContent = "×";
+    x.addEventListener("click", () => {
+      uebung.alternativen.splice(i, 1);
+      onChange();
+    });
+    chip.appendChild(x);
+    chips.appendChild(chip);
+  });
+  box.appendChild(chips);
+
+  const zeile = document.createElement("div");
+  zeile.className = "alt-zeile";
+  const regionSel = document.createElement("select");
+  Object.keys(UEBUNGEN).forEach((r) => regionSel.add(new Option(r, r)));
+  if (uebung.region && UEBUNGEN[uebung.region]) regionSel.value = uebung.region;
+  const uebungSel = document.createElement("select");
+
+  function fuelleAltUebung(auswahl) {
+    const region = regionSel.value;
+    const eigene = ladeEigeneUebungen()[region] || [];
+    uebungSel.innerHTML = "";
+    uebungSel.add(new Option("Übung wählen …", ""));
+    UEBUNGEN[region].concat(eigene).forEach((n) => {
+      if (n !== uebung.name && !uebung.alternativen.includes(n)) uebungSel.add(new Option(n, n));
+    });
+    uebungSel.add(new Option("➕ Neue Übung hinzufügen …", NEUE_UEBUNG));
+    if (auswahl) uebungSel.value = auswahl;
+  }
+  fuelleAltUebung();
+  regionSel.addEventListener("change", () => fuelleAltUebung());
+  uebungSel.addEventListener("change", () => {
+    if (uebungSel.value !== NEUE_UEBUNG) return;
+    const region = regionSel.value;
+    const name = (prompt("Name der neuen Alternative (" + region + "):") || "").trim();
+    if (!name) { fuelleAltUebung(); return; }
+    merkeEigeneUebung(region, name);
+    if (name === uebung.name || uebung.alternativen.includes(name)) {
+      alert("Diese Übung ist bereits enthalten.");
+      fuelleAltUebung();
+      return;
+    }
+    uebung.alternativen.push(name);
+    onChange();
+  });
+
+  const plus = document.createElement("button");
+  plus.type = "button";
+  plus.className = "zweitrangig";
+  plus.textContent = "+";
+  plus.setAttribute("aria-label", "Alternative hinzufügen");
+  plus.addEventListener("click", () => {
+    const name = uebungSel.value;
+    if (!name || name === NEUE_UEBUNG) {
+      alert("Bitte eine Alternative auswählen.");
+      return;
+    }
+    if (name === uebung.name || uebung.alternativen.includes(name)) return;
+    uebung.alternativen.push(name);
+    onChange();
+  });
+  zeile.appendChild(regionSel);
+  zeile.appendChild(uebungSel);
+  zeile.appendChild(plus);
+  box.appendChild(zeile);
+  return box;
+}
+
+function letzteSaetzeFuerUebung(name) {
+  const verlauf = ladeVerlauf().slice().sort((a, b) => a.datum.localeCompare(b.datum) || a.id - b.id);
+  for (let i = verlauf.length - 1; i >= 0; i--) {
+    const gefunden = (verlauf[i].uebungen || []).find((x) => x.name === name);
+    if (gefunden && gefunden.saetze && gefunden.saetze.length) return gefunden.saetze;
+  }
+  return null;
 }
 
 document.getElementById("training-speichern").addEventListener("click", () => {
@@ -204,7 +414,13 @@ document.getElementById("training-speichern").addEventListener("click", () => {
   if (aktuelleUebungen.length === 0) { alert("Bitte füge mindestens eine Übung hinzu."); return; }
 
   const trainings = ladeTrainings();
-  trainings.push({ id: Date.now(), name: name, dauer: Number(dauer || 0), uebungen: aktuelleUebungen });
+  const uebungen = aktuelleUebungen.map((u) => {
+    const alternativen = normalisiereAlternativen(u.alternativen, u.name);
+    const eintrag = { region: u.region, name: u.name, saetze: u.saetze };
+    if (alternativen.length) eintrag.alternativen = alternativen;
+    return eintrag;
+  });
+  trainings.push({ id: Date.now(), name: name, dauer: Number(dauer || 0), uebungen: uebungen });
   speichereTrainings(trainings);
 
   aktuelleUebungen = [];
@@ -374,6 +590,10 @@ function zeigeAnpUebungen() {
       zeigeAnpUebungen();
     });
     karte.appendChild(plus);
+    karte.appendChild(baueAlternativenBereich(u, () => {
+      uebernehmeAnpEingaben();
+      zeigeAnpUebungen();
+    }));
     box.appendChild(karte);
   });
 }
@@ -385,7 +605,8 @@ document.getElementById("anpassen-hinzufuegen").addEventListener("click", () => 
   anpTraining.uebungen.push({
     region: anpRegion.value,
     name: anpUebung.value,
-    saetze: [{ wdh: "", gewicht: "" }, { wdh: "", gewicht: "" }, { wdh: "", gewicht: "" }]
+    saetze: [{ wdh: "", gewicht: "" }, { wdh: "", gewicht: "" }, { wdh: "", gewicht: "" }],
+    alternativen: []
   });
   zeigeAnpUebungen();
 });
@@ -397,8 +618,13 @@ document.getElementById("anpassen-speichern").addEventListener("click", () => {
   if (!name) { alert("Bitte gib dem Training einen Namen."); return; }
   anpTraining.name = name;
   anpTraining.dauer = Number(document.getElementById("anpassen-dauer").value || 0);
-  // leere Sätze entfernen
-  anpTraining.uebungen.forEach((u) => (u.saetze = u.saetze.filter((x) => x.wdh > 0)));
+  // leere Sätze entfernen, Alternativen aufräumen
+  anpTraining.uebungen.forEach((u) => {
+    u.saetze = u.saetze.filter((x) => x.wdh > 0);
+    const alternativen = normalisiereAlternativen(u.alternativen, u.name);
+    if (alternativen.length) u.alternativen = alternativen;
+    else delete u.alternativen;
+  });
   anpTraining.uebungen = anpTraining.uebungen.filter((u) => u.saetze.length > 0);
   if (anpTraining.uebungen.length === 0) { alert("Das Training braucht mindestens eine Übung mit Wiederholungen."); return; }
 
@@ -460,13 +686,141 @@ function zeigeStartAuswahl() {
   trainings.forEach((t) => auswahl.add(new Option(t.name, t.id)));
 }
 
+function bereiteLaufendeUebung(u) {
+  const saetze = JSON.parse(JSON.stringify(u.saetze || [])).map((s) => ({
+    wdh: s.wdh, gewicht: s.gewicht, erledigt: false
+  }));
+  return {
+    region: u.region,
+    name: u.name,
+    originalName: u.name,
+    originalRegion: u.region,
+    alternativen: normalisiereAlternativen(u.alternativen, u.name),
+    aktivIndex: 0,
+    geplantSaetze: JSON.parse(JSON.stringify(u.saetze || [])),
+    saetze: saetze,
+    saetzeProVariante: { 0: JSON.parse(JSON.stringify(saetze)) }
+  };
+}
+
+function variantenEiner(u) {
+  return [u.originalName || u.name].concat(u.alternativen || []);
+}
+
+function baueSaetzeFuerVariante(u) {
+  const geplant = u.geplantSaetze || [];
+  if ((u.aktivIndex || 0) === 0) {
+    return geplant.map((s) => ({ wdh: s.wdh, gewicht: s.gewicht, erledigt: false }));
+  }
+  const letzte = letzteSaetzeFuerUebung(u.name);
+  return geplant.map((s, i) => ({
+    wdh: s.wdh,
+    gewicht: (letzte && letzte[i] && letzte[i].gewicht !== undefined && letzte[i].gewicht !== "") ? letzte[i].gewicht : "",
+    erledigt: false
+  }));
+}
+
+function wechsleVariante(ui, richtung) {
+  if (!laufendesTraining) return;
+  uebernehmeStartEingaben();
+  const u = laufendesTraining.uebungen[ui];
+  const varianten = variantenEiner(u);
+  if (varianten.length < 2) return;
+  u.saetzeProVariante[u.aktivIndex || 0] = JSON.parse(JSON.stringify(u.saetze));
+  const n = varianten.length;
+  u.aktivIndex = ((u.aktivIndex || 0) + richtung + n) % n;
+  u.name = varianten[u.aktivIndex];
+  u.region = findeRegionFuerUebung(u.name) || u.originalRegion;
+  if (!u.saetzeProVariante[u.aktivIndex]) {
+    u.saetzeProVariante[u.aktivIndex] = baueSaetzeFuerVariante(u);
+  }
+  u.saetze = JSON.parse(JSON.stringify(u.saetzeProVariante[u.aktivIndex]));
+  zeigeLaufendeUebungen();
+}
+
+function animiertWechseln(ui, richtung) {
+  const karte = document.querySelector('#start-uebungen [data-ui="' + ui + '"]');
+  if (!karte || !laufendesTraining) { wechsleVariante(ui, richtung); return; }
+  if (karte.dataset.wechsel === "1") return;
+  karte.dataset.wechsel = "1";
+  karte.style.transition = "transform 0.22s ease, opacity 0.22s ease";
+  karte.style.transform = "translateX(" + (richtung > 0 ? "-110%" : "110%") + ")";
+  karte.style.opacity = "0";
+  let fertig = false;
+  const weiter = () => {
+    if (fertig) return;
+    fertig = true;
+    wechsleVariante(ui, richtung);
+    const neu = document.querySelector('#start-uebungen [data-ui="' + ui + '"]');
+    if (!neu) return;
+    neu.style.transition = "none";
+    neu.style.transform = "translateX(" + (richtung > 0 ? "110%" : "-110%") + ")";
+    neu.style.opacity = "0";
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        neu.style.transition = "transform 0.22s ease, opacity 0.22s ease";
+        neu.style.transform = "translateX(0)";
+        neu.style.opacity = "1";
+      });
+    });
+  };
+  karte.addEventListener("transitionend", weiter);
+  setTimeout(weiter, 280);
+}
+
+function bindeSwipe(karte, ui) {
+  const u = laufendesTraining && laufendesTraining.uebungen[ui];
+  if (!u || variantenEiner(u).length < 2) return;
+  let startX = 0, startY = 0, dx = 0, dy = 0, aktiv = false, horizontal = null;
+
+  karte.addEventListener("touchstart", (e) => {
+    if (e.target.closest("input, button, select, textarea")) return;
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    dx = 0;
+    dy = 0;
+    aktiv = true;
+    horizontal = null;
+    karte.style.transition = "none";
+  }, { passive: true });
+
+  karte.addEventListener("touchmove", (e) => {
+    if (!aktiv) return;
+    const t = e.touches[0];
+    dx = t.clientX - startX;
+    dy = t.clientY - startY;
+    if (horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      horizontal = Math.abs(dx) > Math.abs(dy);
+    }
+    if (horizontal) {
+      e.preventDefault();
+      karte.style.transform = "translateX(" + dx + "px)";
+    }
+  }, { passive: false });
+
+  const ende = () => {
+    if (!aktiv) return;
+    aktiv = false;
+    if (horizontal && Math.abs(dx) >= 60) {
+      animiertWechseln(ui, dx < 0 ? 1 : -1);
+    } else {
+      karte.style.transition = "transform 0.2s ease";
+      karte.style.transform = "translateX(0)";
+    }
+  };
+  karte.addEventListener("touchend", ende);
+  karte.addEventListener("touchcancel", ende);
+}
+
 function starteTraining(training, planEintrag) {
+  uebernehmeGewichtWennMoeglich();
   laufendesTraining = {
     trainingId: training.id,
     name: training.name,
     planDatum: planEintrag ? planEintrag.datum : null,
     beginn: new Date().toISOString(),
-    uebungen: JSON.parse(JSON.stringify(training.uebungen))
+    uebungen: training.uebungen.map(bereiteLaufendeUebung)
   };
   document.getElementById("start-auswahl").style.display = "none";
   document.getElementById("start-laeuft").style.display = "block";
@@ -491,9 +845,46 @@ function zeigeLaufendeUebungen() {
   const box = document.getElementById("start-uebungen");
   box.innerHTML = "";
   laufendesTraining.uebungen.forEach((u, ui) => {
+    const varianten = variantenEiner(u);
+    const wrap = document.createElement("div");
+    wrap.className = "swipe-wrap";
     const karte = document.createElement("div");
     karte.className = "karte";
-    karte.innerHTML = "<strong>" + u.name + "</strong>";
+    karte.dataset.ui = String(ui);
+
+    const kopf = document.createElement("div");
+    kopf.className = "uebung-kopf";
+    const titel = document.createElement("strong");
+    titel.textContent = u.name;
+    kopf.appendChild(titel);
+    if (varianten.length > 1) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "zweitrangig swipe-btn";
+      btn.setAttribute("aria-label", "Alternative Übung anzeigen");
+      btn.textContent = "⇄";
+      btn.addEventListener("click", () => animiertWechseln(ui, 1));
+      kopf.appendChild(btn);
+    }
+    karte.appendChild(kopf);
+
+    if (varianten.length > 1) {
+      const hinweis = document.createElement("div");
+      hinweis.className = "alt-hinweis";
+      const idx = u.aktivIndex || 0;
+      hinweis.textContent = idx === 0
+        ? "Ursprüngliche Übung"
+        : "Alternative " + idx + "/" + (varianten.length - 1);
+      karte.appendChild(hinweis);
+      const punkte = document.createElement("div");
+      punkte.className = "punkte";
+      varianten.forEach((_, i) => {
+        const p = document.createElement("span");
+        p.className = "punkt" + (i === idx ? " aktiv" : "");
+        punkte.appendChild(p);
+      });
+      karte.appendChild(punkte);
+    }
 
     u.saetze.forEach((satz, si) => {
       const zeile = document.createElement("div");
@@ -521,7 +912,9 @@ function zeigeLaufendeUebungen() {
       zeigeLaufendeUebungen();
     });
     karte.appendChild(plus);
-    box.appendChild(karte);
+    wrap.appendChild(karte);
+    box.appendChild(wrap);
+    bindeSwipe(karte, ui);
   });
 }
 
@@ -552,7 +945,9 @@ document.getElementById("start-beenden").addEventListener("click", () => {
   if (gemacht.length === 0) { alert("Es wurden noch keine Sätze eingetragen."); return; }
   if (!confirm("Training beenden und speichern?")) return;
 
-  // 1. Im Verlauf speichern (für "Fortschritt")
+  uebernehmeGewichtWennMoeglich();
+
+  // 1. Im Verlauf speichern (für "Fortschritt") – Name der tatsächlich gemachten Übung
   const ende = new Date();
   const verlauf = ladeVerlauf();
   verlauf.push({
@@ -565,12 +960,18 @@ document.getElementById("start-beenden").addEventListener("click", () => {
   });
   localStorage.setItem(VERLAUF_NAME, JSON.stringify(verlauf));
 
-  // 2. Werte als neue Vorgabe ins gespeicherte Training übernehmen
+  // 2. Werte nur übernehmen, wenn die ursprüngliche Übung gemacht wurde
   const trainings = ladeTrainings().map((t) => {
     if (t.id !== laufendesTraining.trainingId) return t;
-    t.uebungen = t.uebungen.map((u) => {
-      const neu = gemacht.find((g) => g.name === u.name);
-      return neu ? { ...u, saetze: neu.saetze } : u;
+    t.uebungen = t.uebungen.map((u, i) => {
+      const laufend = laufendesTraining.uebungen[i];
+      if (!laufend) return u;
+      const istOriginal = (laufend.originalName || u.name) === laufend.name;
+      if (!istOriginal) return u;
+      const saetze = (laufend.saetze || [])
+        .filter((s) => s.wdh > 0)
+        .map((s) => ({ wdh: s.wdh, gewicht: s.gewicht }));
+      return saetze.length ? { ...u, saetze: saetze } : u;
     });
     return t;
   });
@@ -621,9 +1022,12 @@ function maxKraft(einheit, uebungName) {
 }
 
 // Zeichnet ein einfaches Liniendiagramm als SVG
-function zeichneDiagramm(ziel, punkte, einheit) {
+function zeichneDiagramm(ziel, punkte, einheit, dezimal) {
   const box = document.getElementById(ziel);
   if (punkte.length === 0) { box.innerHTML = "<p class='klein'>Noch keine Daten.</p>"; return; }
+  const fmt = (w) => (dezimal != null && dezimal >= 0)
+    ? Number(w).toFixed(dezimal).replace(".", ",")
+    : zahl(w);
   const B = 320, H = 180, L = 44, R = 10, O = 12, U = 26;
   const werte = punkte.map((p) => p.wert);
   let min = Math.min(...werte), max = Math.max(...werte);
@@ -635,14 +1039,14 @@ function zeichneDiagramm(ziel, punkte, einheit) {
   for (let k = 0; k <= 3; k++) {
     const w = min + ((max - min) * k) / 3;
     svg += '<line x1="' + L + '" x2="' + (B - R) + '" y1="' + y(w) + '" y2="' + y(w) + '" stroke="#2a2a2e"/>';
-    svg += '<text x="' + (L - 4) + '" y="' + (y(w) + 3) + '" text-anchor="end">' + zahl(w) + "</text>";
+    svg += '<text x="' + (L - 4) + '" y="' + (y(w) + 3) + '" text-anchor="end">' + fmt(w) + "</text>";
   }
   svg += '<polyline fill="none" stroke="#ff7a1a" stroke-width="2.5" points="' +
     punkte.map((p, i) => x(i) + "," + y(p.wert)).join(" ") + '"/>';
   const schritt = Math.ceil(punkte.length / 6);
   punkte.forEach((p, i) => {
     svg += '<circle cx="' + x(i) + '" cy="' + y(p.wert) + '" r="3.5" fill="#ff7a1a"><title>' +
-      formatDatum(p.datum) + ": " + zahl(p.wert) + " " + einheit + "</title></circle>";
+      formatDatum(p.datum) + ": " + fmt(p.wert) + " " + einheit + "</title></circle>";
     if (i % schritt === 0 || i === punkte.length - 1) {
       svg += '<text x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + formatDatum(p.datum) + "</text>";
     }
@@ -1007,6 +1411,113 @@ function stoppeTimer() {
   if (timerIntervall) clearInterval(timerIntervall);
   timerIntervall = null;
 }
+
+// ---------- Körpergewicht (Training starten) ----------
+const GEWICHT_VERLAUF = "gewichtVerlauf";
+let aktuellesGewicht = null;
+
+function ladeGewichtVerlauf() {
+  return JSON.parse(localStorage.getItem(GEWICHT_VERLAUF)) || [];
+}
+
+function rundeKg(n) {
+  return Math.round(Number(n) * 10) / 10;
+}
+
+function letztesGewicht() {
+  const liste = ladeGewichtVerlauf().slice().sort((a, b) => a.datum.localeCompare(b.datum));
+  if (liste.length) return rundeKg(liste[liste.length - 1].gewicht);
+  const p = ladeProfil();
+  if (p.gewicht) return rundeKg(p.gewicht);
+  return null;
+}
+
+function zeigeGewichtZahl() {
+  const el = document.getElementById("gewicht-wert");
+  if (!el) return;
+  el.textContent = aktuellesGewicht == null ? "—" : aktuellesGewicht.toFixed(1).replace(".", ",");
+}
+
+function zeigeGewichtKarte() {
+  aktuellesGewicht = letztesGewicht();
+  zeigeGewichtZahl();
+  const btn = document.getElementById("gewicht-uebernehmen");
+  if (btn && btn.dataset.ok !== "1") btn.textContent = "Übernehmen";
+}
+
+function aendereGewicht(delta) {
+  const basis = aktuellesGewicht == null ? 70 : aktuellesGewicht;
+  let wert = rundeKg(basis + delta);
+  if (wert < 20) wert = 20;
+  if (wert > 300) wert = 300;
+  aktuellesGewicht = wert;
+  zeigeGewichtZahl();
+}
+
+function speichereKoerpergewicht(kg) {
+  const wert = rundeKg(kg);
+  if (!(wert > 0)) return false;
+  const profil = ladeProfil();
+  profil.gewicht = wert;
+  localStorage.setItem(PROFIL_NAME, JSON.stringify(profil));
+  const liste = ladeGewichtVerlauf();
+  const i = liste.findIndex((e) => e.datum === heute());
+  if (i >= 0) liste[i].gewicht = wert;
+  else liste.push({ datum: heute(), gewicht: wert });
+  localStorage.setItem(GEWICHT_VERLAUF, JSON.stringify(liste));
+  zeigeProfil();
+  return true;
+}
+
+function uebernehmeGewichtWennMoeglich() {
+  if (aktuellesGewicht == null) aktuellesGewicht = letztesGewicht();
+  if (aktuellesGewicht == null) return false;
+  return speichereKoerpergewicht(aktuellesGewicht);
+}
+
+function bindeGewichtsSchritt(el, vorzeichen) {
+  let delay, repeat;
+  const start = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    aendereGewicht(vorzeichen * 0.1);
+    const startZeit = Date.now();
+    delay = setTimeout(() => {
+      repeat = setInterval(() => {
+        aendereGewicht(vorzeichen * (Date.now() - startZeit > 900 ? 0.5 : 0.1));
+      }, 90);
+    }, 400);
+  };
+  const stop = () => {
+    clearTimeout(delay);
+    clearInterval(repeat);
+  };
+  el.addEventListener("pointerdown", start);
+  el.addEventListener("pointerup", stop);
+  el.addEventListener("pointerleave", stop);
+  el.addEventListener("pointercancel", stop);
+  el.addEventListener("click", (e) => {
+    if (e.pointerType) { e.preventDefault(); return; }
+    aendereGewicht(vorzeichen * 0.1);
+  });
+}
+
+bindeGewichtsSchritt(document.getElementById("gewicht-minus"), -1);
+bindeGewichtsSchritt(document.getElementById("gewicht-plus"), 1);
+document.getElementById("gewicht-uebernehmen").addEventListener("click", () => {
+  if (aktuellesGewicht == null) aktuellesGewicht = letztesGewicht();
+  if (!uebernehmeGewichtWennMoeglich()) {
+    alert("Bitte zuerst ein Gewicht einstellen.");
+    return;
+  }
+  const btn = document.getElementById("gewicht-uebernehmen");
+  btn.textContent = "Gespeichert";
+  btn.dataset.ok = "1";
+  setTimeout(() => {
+    btn.textContent = "Übernehmen";
+    btn.dataset.ok = "";
+  }, 1600);
+});
 
 // ---------- Start ----------
 zeigeProfil();
