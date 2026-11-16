@@ -149,6 +149,172 @@ const UEBUNGEN = {
   "Bauch": ["Crunches", "Plank", "Beinheben hängend", "Kabel-Crunches", "Russian Twists"]
 };
 
+// ---------- Übungsbilder ----------
+const UEBUNG_BILDER = {
+  "Bankdrücken": "bankdruecken",
+  "Schrägbankdrücken": "schraegbankdruecken",
+  "Kurzhantel-Bankdrücken": "kurzhantel-bankdruecken",
+  "Butterfly": "butterfly",
+  "Kabelzug-Crossover": "kabelzug-crossover",
+  "Dips": "dips",
+  "Klimmzüge": "klimmzuege",
+  "Latziehen": "latziehen",
+  "Rudern am Kabel": "rudern-am-kabel",
+  "Langhantelrudern": "langhantelrudern",
+  "Kurzhantelrudern": "kurzhantelrudern",
+  "Kreuzheben": "kreuzheben",
+  "Schulterdrücken": "schulterdruecken",
+  "Seitheben": "seitheben",
+  "Frontheben": "frontheben",
+  "Face Pulls": "face-pulls",
+  "Reverse Butterfly": "reverse-butterfly",
+  "Langhantel-Curls": "langhantel-curls",
+  "Kurzhantel-Curls": "kurzhantel-curls",
+  "Hammer-Curls": "hammer-curls",
+  "Scott-Curls": "scott-curls",
+  "Kabel-Curls": "kabel-curls",
+  "Trizepsdrücken am Kabel": "trizepsdruecken-am-kabel",
+  "French Press": "french-press",
+  "Überkopf-Trizepsstrecken": "ueberkopf-trizepsstrecken",
+  "Enges Bankdrücken": "enges-bankdruecken",
+  "Kniebeugen": "kniebeugen",
+  "Beinpresse": "beinpresse",
+  "Ausfallschritte": "ausfallschritte",
+  "Beinstrecker": "beinstrecker",
+  "Beinbeuger": "beinbeuger",
+  "Rumänisches Kreuzheben": "rumaenisches-kreuzheben",
+  "Wadenheben": "wadenheben",
+  "Crunches": "crunches",
+  "Plank": "plank",
+  "Beinheben hängend": "beinheben-haengend",
+  "Kabel-Crunches": "kabel-crunches",
+  "Russian Twists": "russian-twists"
+};
+
+const HANTEL_SVG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
+  '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>';
+
+function uebungBild(name) {
+  const datei = UEBUNG_BILDER[(name || "").trim()];
+  return datei ? "bilder/" + datei + ".webp" : null;
+}
+
+// Kleines Vorschaubild (Tipp öffnet Großansicht); eigene Übungen bekommen ein Hantel-Symbol
+function baueThumb(name, klein) {
+  const src = uebungBild(name);
+  if (!src) {
+    const platz = document.createElement("span");
+    platz.className = "uebung-thumb platzhalter" + (klein ? " klein-thumb" : "");
+    platz.title = "Kein Bild für eigene Übung";
+    platz.innerHTML = HANTEL_SVG;
+    return platz;
+  }
+  const knopf = document.createElement("button");
+  knopf.type = "button";
+  knopf.className = "uebung-thumb" + (klein ? " klein-thumb" : "");
+  knopf.setAttribute("aria-label", "Bild zu „" + name + "“ vergrößern");
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = "";
+  img.setAttribute("loading", "lazy");
+  img.setAttribute("decoding", "async");
+  img.width = 48;
+  img.height = 48;
+  knopf.appendChild(img);
+  knopf.addEventListener("click", (e) => {
+    e.stopPropagation();
+    oeffneBild(name);
+  });
+  return knopf;
+}
+
+let bildOverlay = null;
+
+function baueBildOverlay() {
+  if (bildOverlay) return bildOverlay;
+  const o = document.createElement("div");
+  o.id = "bild-overlay";
+  o.className = "bild-overlay";
+  o.setAttribute("role", "dialog");
+  o.setAttribute("aria-modal", "true");
+  o.hidden = true;
+  o.innerHTML =
+    '<div class="bild-box">' +
+    '<button type="button" class="bild-zu" aria-label="Schließen">×</button>' +
+    '<img class="bild-gross" alt="">' +
+    '<div class="bild-name"></div>' +
+    '<div class="bild-tipp">Tippen oder wischen zum Schließen</div>' +
+    '</div>';
+  let sx = 0, sy = 0, wisch = false;
+  o.addEventListener("click", () => schliesseBild());
+  o.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    sx = t.clientX; sy = t.clientY; wisch = false;
+  }, { passive: true });
+  o.addEventListener("touchmove", (e) => {
+    const t = e.touches[0];
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) e.preventDefault();
+    const box = o.querySelector(".bild-box");
+    box.style.transform = "translate(" + dx + "px," + dy + "px)";
+    box.style.opacity = String(Math.max(0.3, 1 - Math.hypot(dx, dy) / 400));
+    wisch = Math.hypot(dx, dy) > 60;
+  }, { passive: false });
+  o.addEventListener("touchend", () => {
+    const box = o.querySelector(".bild-box");
+    box.style.transform = "";
+    box.style.opacity = "";
+    if (wisch) schliesseBild();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && bildOverlay && !bildOverlay.hidden) schliesseBild();
+  });
+  document.body.appendChild(o);
+  bildOverlay = o;
+  return o;
+}
+
+function oeffneBild(name) {
+  const src = uebungBild(name);
+  if (!src) return;
+  const o = baueBildOverlay();
+  const img = o.querySelector(".bild-gross");
+  img.src = src;
+  img.alt = name;
+  o.querySelector(".bild-name").textContent = name;
+  o.hidden = false;
+  document.body.classList.add("bild-offen");
+  requestAnimationFrame(() => o.classList.add("sichtbar"));
+}
+
+function schliesseBild() {
+  if (!bildOverlay || bildOverlay.hidden) return;
+  bildOverlay.classList.remove("sichtbar");
+  bildOverlay.hidden = true;
+  document.body.classList.remove("bild-offen");
+}
+
+// Übungsname mit Thumbnail davor
+function baueUebungTitel(name, zusatz, klein) {
+  const wrap = document.createElement("div");
+  wrap.className = "uebung-titel";
+  wrap.appendChild(baueThumb(name, klein));
+  const text = document.createElement("div");
+  text.className = "uebung-titel-text";
+  const strong = document.createElement("strong");
+  strong.textContent = name;
+  text.appendChild(strong);
+  if (zusatz) {
+    const sub = document.createElement("span");
+    sub.className = "klein";
+    sub.textContent = zusatz;
+    text.appendChild(sub);
+  }
+  wrap.appendChild(text);
+  return wrap;
+}
+
 // ---------- Neues Training ----------
 const TRAININGS_NAME = "trainings";
 let aktuelleUebungen = [];
@@ -272,7 +438,7 @@ function zeigeAktuelleUebungen() {
     li.className = "mit-alternativen";
     const kopf = document.createElement("div");
     kopf.className = "uebung-kopf";
-    kopf.innerHTML = "<div><strong>" + u.name + "</strong><br><span class='klein'>" + satzText(u.saetze) + "</span></div>";
+    kopf.appendChild(baueUebungTitel(u.name, satzText(u.saetze)));
     const knopf = document.createElement("button");
     knopf.className = "loeschen";
     knopf.textContent = "×";
@@ -287,11 +453,36 @@ function zeigeAktuelleUebungen() {
   });
 }
 
+// Alternativen: alt = ["Name", ...], neu = ["Name" | {name, saetze?}, ...]
+function altName(a) {
+  return (typeof a === "string" ? a : (a && a.name) || "").trim();
+}
+
+function bereinigeSaetze(saetze) {
+  return (Array.isArray(saetze) ? saetze : [])
+    .map((x) => ({ wdh: Number((x && x.wdh) || 0), gewicht: Number((x && x.gewicht) || 0) }))
+    .filter((x) => x.wdh > 0);
+}
+
+// Liefert immer Objekte {name, saetze?} (saetze nur, wenn vorbelegt)
 function normalisiereAlternativen(liste, hauptname) {
-  return (liste || [])
-    .map((a) => (typeof a === "string" ? a : (a && a.name) || ""))
-    .map((n) => n.trim())
-    .filter((n, i, arr) => n && n !== hauptname && arr.indexOf(n) === i);
+  const namen = [];
+  const ergebnis = [];
+  (Array.isArray(liste) ? liste : []).forEach((a) => {
+    const name = altName(a);
+    if (!name || name === hauptname || namen.includes(name)) return;
+    namen.push(name);
+    const eintrag = { name: name };
+    const saetze = bereinigeSaetze(a && typeof a === "object" ? a.saetze : null);
+    if (saetze.length) eintrag.saetze = saetze;
+    ergebnis.push(eintrag);
+  });
+  return ergebnis;
+}
+
+// Speicherformat: ohne Vorbelegung weiter als reiner Name (rückwärtskompatibel)
+function alternativenZumSpeichern(liste, hauptname) {
+  return normalisiereAlternativen(liste, hauptname).map((a) => (a.saetze ? a : a.name));
 }
 
 function findeRegionFuerUebung(name) {
@@ -315,6 +506,12 @@ function merkeEigeneUebung(region, name) {
 
 function baueAlternativenBereich(uebung, onChange) {
   if (!Array.isArray(uebung.alternativen)) uebung.alternativen = [];
+  // alte String-Einträge in Objekte umwandeln (nur für die Bearbeitung)
+  uebung.alternativen = uebung.alternativen
+    .map((a) => (typeof a === "string" ? { name: a.trim() } : a))
+    .filter((a) => a && altName(a));
+  const namen = () => uebung.alternativen.map(altName);
+
   const box = document.createElement("div");
   box.className = "alternativen-box";
   const label = document.createElement("span");
@@ -322,24 +519,105 @@ function baueAlternativenBereich(uebung, onChange) {
   label.textContent = "Alternativen";
   box.appendChild(label);
 
-  const chips = document.createElement("div");
-  chips.className = "chips";
-  uebung.alternativen.forEach((name, i) => {
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    chip.appendChild(document.createTextNode(name));
+  const liste = document.createElement("div");
+  liste.className = "alt-liste";
+  uebung.alternativen.forEach((alt, i) => {
+    const eintrag = document.createElement("div");
+    eintrag.className = "alt-eintrag" + (alt._offen ? " offen" : "");
+
+    const kopf = document.createElement("div");
+    kopf.className = "alt-kopf";
+    const info = document.createElement("div");
+    info.className = "alt-info";
+    const nameEl = document.createElement("strong");
+    nameEl.textContent = altName(alt);
+    const sub = document.createElement("span");
+    sub.className = "klein alt-saetze-text";
+    const vorbelegt = Array.isArray(alt.saetze) && alt.saetze.some((x) => Number(x.wdh) > 0);
+    sub.textContent = vorbelegt
+      ? satzText(alt.saetze.filter((x) => Number(x.wdh) > 0).map((x) => ({ wdh: x.wdh, gewicht: x.gewicht || 0 })))
+      : "Ohne vorbelegte Sätze";
+    info.appendChild(nameEl);
+    info.appendChild(sub);
+    kopf.appendChild(baueThumb(altName(alt), true));
+    kopf.appendChild(info);
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "zweitrangig alt-toggle";
+    toggle.textContent = alt._offen ? "Fertig" : (vorbelegt ? "Sätze ✎" : "Sätze vorbelegen");
+    toggle.addEventListener("click", () => {
+      alt._offen = !alt._offen;
+      if (alt._offen && !(Array.isArray(alt.saetze) && alt.saetze.length)) {
+        // Vorlage: gleiche Anzahl Sätze und Wiederholungen wie die Hauptübung, Gewicht leer
+        const haupt = (uebung.saetze || []).filter((x) => Number(x.wdh) > 0);
+        alt.saetze = haupt.length
+          ? haupt.map((x) => ({ wdh: x.wdh, gewicht: "" }))
+          : [{ wdh: "", gewicht: "" }, { wdh: "", gewicht: "" }, { wdh: "", gewicht: "" }];
+      }
+      if (!alt._offen && Array.isArray(alt.saetze)) {
+        alt.saetze = alt.saetze.filter((x) => Number(x.wdh) > 0);
+        if (!alt.saetze.length) delete alt.saetze;
+      }
+      onChange();
+    });
+    kopf.appendChild(toggle);
+
     const x = document.createElement("button");
     x.type = "button";
+    x.className = "loeschen";
     x.setAttribute("aria-label", "Alternative entfernen");
     x.textContent = "×";
     x.addEventListener("click", () => {
       uebung.alternativen.splice(i, 1);
       onChange();
     });
-    chip.appendChild(x);
-    chips.appendChild(chip);
+    kopf.appendChild(x);
+    eintrag.appendChild(kopf);
+
+    if (alt._offen) {
+      const saetzeBoxAlt = document.createElement("div");
+      saetzeBoxAlt.className = "alt-saetze";
+      if (!Array.isArray(alt.saetze)) alt.saetze = [];
+      alt.saetze.forEach((satz, si) => {
+        const zeile = document.createElement("div");
+        zeile.className = "satz-zeile alt-satz-zeile";
+        zeile.innerHTML =
+          '<span class="satz-nr">Satz ' + (si + 1) + '</span>' +
+          '<input type="number" min="1" inputmode="numeric" placeholder="Wdh." class="wdh">' +
+          '<input type="number" min="0" step="0.5" inputmode="decimal" placeholder="kg" class="kg">' +
+          '<button type="button" class="loeschen">×</button>';
+        const wdhEl = zeile.querySelector(".wdh");
+        const kgEl = zeile.querySelector(".kg");
+        wdhEl.value = satz.wdh || "";
+        kgEl.value = satz.gewicht ?? "";
+        wdhEl.addEventListener("input", () => { satz.wdh = wdhEl.value === "" ? "" : Number(wdhEl.value); });
+        kgEl.addEventListener("input", () => { satz.gewicht = kgEl.value === "" ? "" : Number(kgEl.value); });
+        zeile.querySelector(".loeschen").addEventListener("click", () => {
+          alt.saetze.splice(si, 1);
+          onChange();
+        });
+        saetzeBoxAlt.appendChild(zeile);
+      });
+      const plusSatz = document.createElement("button");
+      plusSatz.type = "button";
+      plusSatz.className = "zweitrangig alt-satz-plus";
+      plusSatz.textContent = "+ Satz";
+      plusSatz.addEventListener("click", () => {
+        const letzter = alt.saetze[alt.saetze.length - 1] || { wdh: "", gewicht: "" };
+        alt.saetze.push({ wdh: letzter.wdh, gewicht: letzter.gewicht });
+        onChange();
+      });
+      saetzeBoxAlt.appendChild(plusSatz);
+      const hinweis = document.createElement("span");
+      hinweis.className = "klein alt-saetze-hinweis";
+      hinweis.textContent = "Alle Wdh. leer = keine Vorbelegung (dann wie bisher: Wdh. der Hauptübung, Gewicht vom letzten Mal).";
+      saetzeBoxAlt.appendChild(hinweis);
+      eintrag.appendChild(saetzeBoxAlt);
+    }
+    liste.appendChild(eintrag);
   });
-  box.appendChild(chips);
+  box.appendChild(liste);
 
   const zeile = document.createElement("div");
   zeile.className = "alt-zeile";
@@ -354,7 +632,7 @@ function baueAlternativenBereich(uebung, onChange) {
     uebungSel.innerHTML = "";
     uebungSel.add(new Option("Übung wählen …", ""));
     UEBUNGEN[region].concat(eigene).forEach((n) => {
-      if (n !== uebung.name && !uebung.alternativen.includes(n)) uebungSel.add(new Option(n, n));
+      if (n !== uebung.name && !namen().includes(n)) uebungSel.add(new Option(n, n));
     });
     uebungSel.add(new Option("➕ Neue Übung hinzufügen …", NEUE_UEBUNG));
     if (auswahl) uebungSel.value = auswahl;
@@ -367,12 +645,12 @@ function baueAlternativenBereich(uebung, onChange) {
     const name = (prompt("Name der neuen Alternative (" + region + "):") || "").trim();
     if (!name) { fuelleAltUebung(); return; }
     merkeEigeneUebung(region, name);
-    if (name === uebung.name || uebung.alternativen.includes(name)) {
+    if (name === uebung.name || namen().includes(name)) {
       alert("Diese Übung ist bereits enthalten.");
       fuelleAltUebung();
       return;
     }
-    uebung.alternativen.push(name);
+    uebung.alternativen.push({ name: name });
     onChange();
   });
 
@@ -387,8 +665,8 @@ function baueAlternativenBereich(uebung, onChange) {
       alert("Bitte eine Alternative auswählen.");
       return;
     }
-    if (name === uebung.name || uebung.alternativen.includes(name)) return;
-    uebung.alternativen.push(name);
+    if (name === uebung.name || namen().includes(name)) return;
+    uebung.alternativen.push({ name: name });
     onChange();
   });
   zeile.appendChild(regionSel);
@@ -415,7 +693,7 @@ document.getElementById("training-speichern").addEventListener("click", () => {
 
   const trainings = ladeTrainings();
   const uebungen = aktuelleUebungen.map((u) => {
-    const alternativen = normalisiereAlternativen(u.alternativen, u.name);
+    const alternativen = alternativenZumSpeichern(u.alternativen, u.name);
     const eintrag = { region: u.region, name: u.name, saetze: u.saetze };
     if (alternativen.length) eintrag.alternativen = alternativen;
     return eintrag;
@@ -513,7 +791,7 @@ anpAuswahl.addEventListener("change", () => {
 function uebernehmeAnpEingaben() {
   document.querySelectorAll("#anpassen-uebungen .karte").forEach((karte, ui) => {
     const saetze = [];
-    karte.querySelectorAll(".satz-zeile").forEach((zeile) => {
+    karte.querySelectorAll(":scope > .satz-zeile").forEach((zeile) => {
       const wdh = zeile.querySelector(".wdh").value;
       const kg = zeile.querySelector(".kg").value;
       saetze.push({ wdh: Number(wdh || 0), gewicht: Number(kg || 0) });
@@ -531,7 +809,7 @@ function zeigeAnpUebungen() {
 
     const kopf = document.createElement("div");
     kopf.className = "uebung-kopf";
-    kopf.innerHTML = "<strong>" + u.name + "</strong>";
+    kopf.appendChild(baueUebungTitel(u.name));
     const entfernen = document.createElement("button");
     entfernen.className = "loeschen";
     entfernen.textContent = "Entfernen";
@@ -621,7 +899,7 @@ document.getElementById("anpassen-speichern").addEventListener("click", () => {
   // leere Sätze entfernen, Alternativen aufräumen
   anpTraining.uebungen.forEach((u) => {
     u.saetze = u.saetze.filter((x) => x.wdh > 0);
-    const alternativen = normalisiereAlternativen(u.alternativen, u.name);
+    const alternativen = alternativenZumSpeichern(u.alternativen, u.name);
     if (alternativen.length) u.alternativen = alternativen;
     else delete u.alternativen;
   });
@@ -704,7 +982,15 @@ function bereiteLaufendeUebung(u) {
 }
 
 function variantenEiner(u) {
-  return [u.originalName || u.name].concat(u.alternativen || []);
+  return [u.originalName || u.name].concat((u.alternativen || []).map(altName));
+}
+
+function vorbelegteSaetzeDerVariante(u) {
+  const idx = u.aktivIndex || 0;
+  if (idx === 0) return null;
+  const alt = (u.alternativen || [])[idx - 1];
+  const saetze = alt && typeof alt === "object" ? bereinigeSaetze(alt.saetze) : [];
+  return saetze.length ? saetze : null;
 }
 
 function baueSaetzeFuerVariante(u) {
@@ -712,6 +998,8 @@ function baueSaetzeFuerVariante(u) {
   if ((u.aktivIndex || 0) === 0) {
     return geplant.map((s) => ({ wdh: s.wdh, gewicht: s.gewicht, erledigt: false }));
   }
+  const vorbelegt = vorbelegteSaetzeDerVariante(u);
+  if (vorbelegt) return vorbelegt.map((s) => ({ wdh: s.wdh, gewicht: s.gewicht, erledigt: false }));
   const letzte = letzteSaetzeFuerUebung(u.name);
   return geplant.map((s, i) => ({
     wdh: s.wdh,
@@ -854,9 +1142,7 @@ function zeigeLaufendeUebungen() {
 
     const kopf = document.createElement("div");
     kopf.className = "uebung-kopf";
-    const titel = document.createElement("strong");
-    titel.textContent = u.name;
-    kopf.appendChild(titel);
+    kopf.appendChild(baueUebungTitel(u.name));
     if (varianten.length > 1) {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -874,7 +1160,7 @@ function zeigeLaufendeUebungen() {
       const idx = u.aktivIndex || 0;
       hinweis.textContent = idx === 0
         ? "Ursprüngliche Übung"
-        : "Alternative " + idx + "/" + (varianten.length - 1);
+        : "Alternative " + idx + "/" + (varianten.length - 1) + (vorbelegteSaetzeDerVariante(u) ? " · Sätze vorbelegt" : "");
       karte.appendChild(hinweis);
       const punkte = document.createElement("div");
       punkte.className = "punkte";
@@ -967,11 +1253,18 @@ document.getElementById("start-beenden").addEventListener("click", () => {
       const laufend = laufendesTraining.uebungen[i];
       if (!laufend) return u;
       const istOriginal = (laufend.originalName || u.name) === laufend.name;
-      if (!istOriginal) return u;
       const saetze = (laufend.saetze || [])
         .filter((s) => s.wdh > 0)
         .map((s) => ({ wdh: s.wdh, gewicht: s.gewicht }));
-      return saetze.length ? { ...u, saetze: saetze } : u;
+      if (!saetze.length) return u;
+      if (istOriginal) return { ...u, saetze: saetze };
+      // Alternative gemacht: nur deren Vorbelegung aktualisieren (falls vorhanden)
+      if (!Array.isArray(u.alternativen)) return u;
+      const alternativen = u.alternativen.map((a) =>
+        (a && typeof a === "object" && altName(a) === laufend.name && bereinigeSaetze(a.saetze).length)
+          ? { name: altName(a), saetze: saetze }
+          : a);
+      return { ...u, alternativen: alternativen };
     });
     return t;
   });
